@@ -9,14 +9,33 @@ import {
     Bubble,
 } from '@ant-design/x';
 import { Button, message } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, UserOutlined } from '@ant-design/icons';
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 const historyData = Array.from({ length: 4 }).map((_, index) => ({
     key: `item${index + 1}`,
     label: `Conversation Item ${index + 1}`,
     disabled: index === 3,
 }));
+
+const rolesAsObject = {
+    assistant: {
+        placement: 'start',
+        avatar: { icon: <img src='/ai.png' alt='' /> },
+        typing: { step: 5, interval: 20 },
+        style: {
+            maxWidth: 700,
+        },
+    },
+    user: {
+        placement: 'end',
+        avatar: {
+            icon: <UserOutlined />,
+            style: { background: '#fde3cf' },
+        },
+    },
+};
 
 export default function Home() {
     const [loading, setLoading] = useState(false);
@@ -36,6 +55,8 @@ export default function Home() {
 
             setValue('');
             setLoading(true);
+
+            onUpdate('loading');
 
             const exampleRequest = XRequest({
                 baseURL: location.origin + '/api/chat',
@@ -77,15 +98,26 @@ export default function Home() {
         onRequest,
         // use to render messages
         messages,
-    } = useXChat({ agent });
+    } = useXChat({
+        agent,
+        // transformMessage: ({ originMessage }) => {
+        //     return {
+        //         ...originMessage,
+        //     };
+        // },
+    });
 
-    // console.log('messages', messages);
+    console.log('messages', messages);
 
-    const items = messages.map(({ message, id }) => ({
+    const items = messages.map(({ message, id, status }) => ({
         // key is required, used to identify the message
         key: id,
-        content: message,
+        content: <ReactMarkdown>{message}</ReactMarkdown>,
+        loading: message === 'loading',
+        role: status === 'loading' ? 'assistant' : 'user',
     }));
+
+    // console.log('items', items);
 
     return (
         <div className='w-full h-dvh overflow-hidden flex'>
@@ -101,10 +133,14 @@ export default function Home() {
                 <Conversations items={historyData} defaultActiveKey='item1' />
             </div>
 
-            <div className='w-4/5 h-dvh overflow-hidden bg-gray-50 p-4 flex flex-col'>
-                <div className='flex-1'>
+            <div className='w-4/5 h-dvh overflow-hidden bg-gray-50 p-4 flex flex-col gap-4'>
+                <div className='flex-1 overflow-y-hidden'>
                     {messages.length > 0 ? (
-                        <Bubble.List items={items} />
+                        <Bubble.List
+                            className='h-full overflow-y-auto pb-4'
+                            items={items}
+                            roles={rolesAsObject}
+                        />
                     ) : (
                         <Welcome
                             icon='https://mdn.alipayobjects.com/huamei_iwk9zp/afts/img/A*s5sNRo5LjfQAAAAAAAAAAAAADgCCAQ/fmt.webp'
