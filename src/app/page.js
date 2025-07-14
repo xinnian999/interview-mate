@@ -8,7 +8,7 @@ import {
     useXChat,
     Bubble,
 } from '@ant-design/x';
-import { Button, message } from 'antd';
+import { Button } from 'antd';
 import { PlusOutlined, UserOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
