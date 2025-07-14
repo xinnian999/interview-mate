@@ -10,7 +10,7 @@ import {
 } from '@ant-design/x';
 import { Button } from 'antd';
 import { PlusOutlined, UserOutlined } from '@ant-design/icons';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 const historyData = Array.from({ length: 4 }).map((_, index) => ({
@@ -27,6 +27,12 @@ const rolesAsObject = {
         style: {
             maxWidth: 700,
         },
+        styles: {
+            content: {
+                backgroundColor: '#fff',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+            },
+        },
     },
     user: {
         placement: 'end',
@@ -37,21 +43,17 @@ const rolesAsObject = {
     },
 };
 
+let historyMessages = [];
+
 export default function Home() {
     const [loading, setLoading] = useState(false);
     const [value, setValue] = useState('');
 
     const [agent] = useXAgent({
         request: async (info, callbacks) => {
-            const { messages, message } = info;
+            const { onUpdate } = callbacks;
 
-            const { onSuccess, onUpdate, onError } = callbacks;
-
-            // current message
-            console.log('message', message);
-
-            // // history messages
-            // console.log('messages', messages);
+            console.log('historyMessages in request', historyMessages);
 
             setValue('');
             setLoading(true);
@@ -66,20 +68,21 @@ export default function Home() {
 
             exampleRequest.create(
                 {
-                    messages: [{ role: 'user', content: message }],
+                    messages: [
+                        ...historyMessages,
+                        { role: 'user', content: info.message },
+                    ],
                     stream: true,
                 },
                 {
                     onSuccess: (messages) => {
-                        console.log('onSuccess', messages);
                         setLoading(false);
                     },
                     onError: (error) => {
-                        console.error('onError', error);
                         setLoading(false);
                     },
                     onUpdate: (msg) => {
-                        console.log('onUpdate', msg);
+                        // console.log('onUpdate', msg);
                         try {
                             const data = JSON.parse(msg.data);
                             content += data?.choices[0].delta.content;
@@ -93,31 +96,25 @@ export default function Home() {
         },
     });
 
-    const {
-        // use to send message
-        onRequest,
-        // use to render messages
-        messages,
-    } = useXChat({
+    const { onRequest, messages } = useXChat({
         agent,
-        // transformMessage: ({ originMessage }) => {
-        //     return {
-        //         ...originMessage,
-        //     };
-        // },
     });
 
-    console.log('messages', messages);
+    useEffect(() => {
+        historyMessages = messages.map((item) => ({
+            content: item.message,
+            role: item.status === 'local' ? 'user' : 'assistant',
+        }));
+    }, [messages]);
 
     const items = messages.map(({ message, id, status }) => ({
-        // key is required, used to identify the message
         key: id,
         content: <ReactMarkdown>{message}</ReactMarkdown>,
         loading: message === 'loading',
-        role: status === 'loading' ? 'assistant' : 'user',
+        role: status === 'local' ? 'user' : 'assistant',
     }));
 
-    // console.log('items', items);
+    console.log('historyMessages in render', historyMessages);
 
     return (
         <div className='w-full h-dvh overflow-hidden flex'>
@@ -153,6 +150,9 @@ export default function Home() {
                     onSubmit={onRequest}
                     loading={loading}
                     value={value}
+                    className='bg-white'
+                    autoSize={{ minRows: 2, maxRows: 6 }}
+                    placeholder='请输入内容...'
                     onChange={(v) => {
                         setValue(v);
                     }}
